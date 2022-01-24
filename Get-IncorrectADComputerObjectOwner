@@ -1,0 +1,8 @@
+<# While it is critical that all Domain Controllers in the domain are owned by "Domain Admins", 
+it is also very important that all other Computer Objects are properly owned as well.
+You may find unexpected AD Computer Object ownership if you use delegated permissions to 
+add PCs, Servers, or other Computer Objects to the domain, such as when using Microsoft Deployment Toolkit.
+Once Computer Objects with unexpected ownership are discovered via this PoSH 1-liner, they can be remediated 
+manually by changing the owner to "Domain Admins or use of another script can be used to Set-ACL. #>
+#
+Get-ADComputer -Filter * -properties ntSecurityDescriptor | Select-Object -Property Name, @{Name='ntSecurityDescriptorOwner'; Expression={$_.ntSecurityDescriptor.Owner }}, DistinguishedName | where { $_.ntSecurityDescriptorOwner -notlike "*\Domain Admins" }
