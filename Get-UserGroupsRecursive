@@ -1,0 +1,41 @@
+# Export group membership for all AD users, including nested groups.  This query isn't optimized and would likely take a long time to run on a large enviroment.
+
+Import-Module ActiveDirectory
+# Set this to the appropriate location to save your CSV report
+$ReportPath = “C:\ADUserGroupsRecursive.csv“
+# Get a list of all Active Directory users
+$ADUsers = Get-ADUser -filter * -Properties *
+# Initialize Array
+$ExportData = @()
+# Set the current index to 1 (Used for a progress bar)
+$currentIndex = 1
+
+# Loop through all ADUsers
+foreach($Username in $ADUsers) {
+    # Progress Bar
+    Write-Progress -Id 0 -Activity "Building report from Active Directory" -Status "$currentIndex of $($ADUsers.Count)" -PercentComplete (($currentIndex / $ADUsers.Count) * 100)
+    $userdn = $Username.DistinguishedName
+    $strFilter = "(member:1.2.840.113556.1.4.1941:=$userdn)"
+    # Get all group membership of a given user
+    $GroupMembership = Get-ADGroup -LDAPFilter $strFilter -ResultPageSize 1000 
+
+    # For each group membership add a new object to the ExportData array
+    foreach($Group in $GroupMembership) {
+    # Get Group Details
+    $ADGroup = Get-ADGroup $Group -Properties *
+        $ExportData += [PSCustomObject]@{
+            User = $Username.SamAccountName
+            Name = $Username.Name
+            Description = $Username.Description
+            Enabled = $Username.Enabled
+            Group = $Group.Name
+            GroupDescription = $ADGroup.Description
+        }
+    }
+    # Increment the index
+    $currentIndex++;
+}
+# Reset the progress bar
+Write-Progress -Id 0 -Activity " " -Status " " -Completed
+# Export the data to the CSV
+$ExportData | Export-Csv -Path $ReportPath -NoTypeInformation
